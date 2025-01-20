@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+
+# Environment variables
+.env
+
+# Exclude all contents in models directory first
+app/models/*
+app/models/**/*
+
+# Then include only specific Python files
+!app/models/__init__.py
+!app/models/tts_model.py
+!app/models/stt_model.py
+
+# Exclude specific model directories and files
+app/models/kokoro/
+app/models/whisper_model/
+app/models/tts_model/
+app/models/stt_model/
+**/cache/
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.mp3
+
+# Static files
+app/static/audio/**/*
