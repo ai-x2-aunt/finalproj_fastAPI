@@ -7,8 +7,8 @@ from ..core.config import settings
 
 class Work24Service:
     def __init__(self):
-        self.base_url = settings.WORK24_API_BASE_URL
-        self.api_key = settings.WORK24_API_KEY
+        self.base_url = settings.WORK24_API_COMMON_BASE_URL
+        self.api_key = settings.WORK24_COMMON_CODE_API_KEY
 
     async def fetch_job_postings(
         self,

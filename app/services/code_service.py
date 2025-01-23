@@ -5,20 +5,20 @@ from ..core.config import settings
 
 class CodeService:
     def __init__(self):
-        self.base_url = "https://www.work24.go.kr"
-        self.auth_key = settings.WORK24_API_KEY
+        self.base_url = settings.WORK24_API_COMMON_BASE_URL
+        self.auth_key = settings.WORK24_COMMON_CODE_API_KEY
         
         # API 엔드포인트 매핑
         self.endpoints = {
-            "region": "/cm/openApi/call/wk/callOpenApiSvcInfo21L01.do",      # 지역
-            "occupation": "/cm/openApi/call/wk/callOpenApiSvcInfo21L02.do",  # 직종
-            "license": "/cm/openApi/call/wk/callOpenApiSvcInfo21L03.do",     # 자격면허
-            "industrial": "/cm/openApi/call/wk/callOpenApiSvcInfo21L04.do",  # 산업단지
-            "subway": "/cm/openApi/call/wk/callOpenApiSvcInfo21L05.do",      # 지하철
-            "major": "/cm/openApi/call/wk/callOpenApiSvcInfo21L06.do",       # 전공
-            "language": "/cm/openApi/call/wk/callOpenApiSvcInfo21L07.do",    # 언어
-            "department": "/cm/openApi/call/wk/callOpenApiSvcInfo21L08.do",  # 학과계열
-            "company": "/cm/openApi/call/wk/callOpenApiSvcInfo21L09.do"      # 강소기업
+            "region": settings.REGION_CODE_ENDPOINT,
+            "occupation": settings.JOB_CODE_ENDPOINT,
+            "license": settings.CERTIFICATE_CODE_ENDPOINT,
+            "industrial": settings.INDUSTRIAL_COMPLEX_ENDPOINT,
+            "subway": settings.SUBWAY_CODE_ENDPOINT,
+            "major": settings.MAJOR_CODE_ENDPOINT,
+            "language": settings.LANGUAGE_CODE_ENDPOINT,
+            "department": settings.DEPARTMENT_CODE_ENDPOINT,
+            "company": settings.SMALL_GIANT_CODE_ENDPOINT
         }
         
         # dtlGb 매핑

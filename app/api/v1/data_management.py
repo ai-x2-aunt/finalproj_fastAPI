@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 from ...schemas.job_posting import JobPosting, TrainingProgram
 from ...services.vector_db_service import VectorDBService
 from ...services.llm_service import LLMService
@@ -7,6 +7,8 @@ from ...services.work24_service import Work24Service
 from ...services.hrd_service import HRDService
 from ...services.scheduler_service import SchedulerService
 from ...services.code_service import CodeService
+from ...services.data_collection_service import DataCollectionService
+from ...core.config import settings
 from datetime import datetime
 
 router = APIRouter()
@@ -15,6 +17,7 @@ work24_service = Work24Service()
 hrd_service = HRDService()
 scheduler = SchedulerService()
 code_service = CodeService()
+data_collection_service = DataCollectionService()
 
 async def get_llm_service():
     return LLMService(model_name="llama2")  # 임베딩용으로 llama2 사용
@@ -227,5 +230,23 @@ async def get_all_codes():
     """모든 공통코드 정보 조회"""
     try:
         return await code_service.get_all_codes()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/collect/job-postings", response_model=Dict[str, Any])
+async def collect_job_postings():
+    """채용공고 데이터 수집 및 벡터 DB 저장"""
+    try:
+        result = await data_collection_service.collect_job_postings()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/collect/training-programs", response_model=Dict[str, Any])
+async def collect_training_programs():
+    """훈련과정 데이터 수집 및 벡터 DB 저장"""
+    try:
+        result = await data_collection_service.collect_training_programs()
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 

@@ -34,9 +34,8 @@ class JobPostingService:
             # 벡터 DB에 저장
             metadata = job_posting.dict(exclude={'vector'})
             success = await self.vector_db.upsert_job_posting(
-                job_id=job_id,
-                vector=vector,
-                metadata=metadata
+                job_posting=metadata,
+                vector=vector
             )
             
             if success:
@@ -145,6 +144,38 @@ class JobPostingService:
                 """,
                 working_hours="자율출퇴근",
                 benefits=["유류비지원", "상해보험가입"]
+            ),
+            JobPostingCreate(
+                title="식당 주방보조",
+                company_name="맛있는 식당",
+                location="서울시 중구",
+                job_type="파트타임",
+                salary="시급 11,000원",
+                required_skills=["주방 경험자", "식품위생교육 이수자"],
+                description="""
+                오전 주방보조 구인
+                - 업무: 식재료 손질, 주방 청소
+                - 근무시간: 오전 9시 ~ 오후 2시
+                - 우대: 단체급식 경험자
+                """,
+                working_hours="5시간/일",
+                benefits=["중식제공", "교통비지원", "근무복지급"]
+            ),
+            JobPostingCreate(
+                title="시니어 모델",
+                company_name="실버스타 미디어",
+                location="서울시 마포구",
+                job_type="프리랜서",
+                salary="회당 20만원",
+                required_skills=["카메라 촬영 가능자"],
+                description="""
+                50대 이상 시니어 모델 모집
+                - 온라인 쇼핑몰 의류 촬영
+                - 월 2-3회 촬영
+                - 경험무관
+                """,
+                working_hours="촬영일정 협의",
+                benefits=["촬영의상 제공", "메이크업 지원"]
             )
         ]
         

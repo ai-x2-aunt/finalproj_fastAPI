@@ -7,8 +7,8 @@ from ..core.config import settings
 
 class HRDService:
     def __init__(self):
-        self.base_url = settings.HRD_API_BASE_URL
-        self.auth_key = settings.HRD_API_KEY
+        self.base_url = settings.WORK24_API_COMMON_TRAINING_URL
+        self.auth_key = settings.TOMORROW_LEARNING_CARD_API_KEY
 
     async def fetch_training_programs(
         self,

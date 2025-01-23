@@ -4,6 +4,7 @@ from .core.config import settings
 from .api.v1 import data_management_router
 from .api.endpoints import chat  # 채팅 라우터 import
 from .services.scheduler_service import SchedulerService
+from .services.vector_db_service import VectorDBService
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -24,13 +25,22 @@ app.add_middleware(
 app.include_router(data_management_router, prefix=settings.API_V1_STR)
 app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags=["chat"])  # 채팅 라우터 등록 수정
 
-# 스케줄러 초기화 및 시작
+# 서비스 초기화
 scheduler = SchedulerService()
+vector_db = VectorDBService()
 
 @app.on_event("startup")
 async def startup_event():
     """애플리케이션 시작 시 실행되는 이벤트"""
+    # 스케줄러 시작
     scheduler.start()
+    
+    # 벡터 DB 초기화
+    await vector_db.initialize_data()
+    
+    # 벡터 DB 상태 확인
+    stats = await vector_db.get_stats()
+    print(f"Vector DB Stats: {stats}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -40,7 +50,11 @@ async def shutdown_event():
 # 헬스체크 엔드포인트
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    stats = await vector_db.get_stats()
+    return {
+        "status": "healthy",
+        "vector_db_stats": stats
+    }
 
 if __name__ == "__main__":
     import uvicorn

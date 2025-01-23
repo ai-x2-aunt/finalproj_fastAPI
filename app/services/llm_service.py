@@ -20,12 +20,13 @@ class LLMService:
             model=model_name,
             base_url="http://localhost:11434",
         )
-        # 임베딩은 항상 llama2를 사용 (384 차원 유지)
+        # 임베딩은 항상 llama2를 사용
         self.embeddings = OllamaEmbeddings(
             model="llama2",
             base_url="http://localhost:11434"
         )
         
+        # 대화 기록 관리 개선
         self.conversation_memory = ConversationBufferMemory(
             memory_key="chat_history",
             input_key="input",
@@ -42,29 +43,34 @@ class LLMService:
 
         self.interview_prompt = PromptTemplate(
             input_variables=["chat_history", "input", "similar_jobs"],
-            template="""You are an AI career counselor for senior job seekers. Have a natural conversation to understand their background and preferences.
+            template="""당신은 시니어 구직자를 위한 AI 취업 상담사입니다. 
 
-            Key information to gather:
-            - Work experience
-            - Skills and certifications
-            - Job preferences
-            - Work environment preferences
-            - Salary expectations
-
-            Rules:
-            1. Ask only ONE question at a time
-            2. Keep responses under 3 sentences
-            3. Be friendly and empathetic
-            4. Progress naturally based on their answers
-            5. Suggest jobs only when you have enough context
-
-            Previous conversation:
+            다음 규칙을 따라 상담을 진행하세요:
+            1. 채용정보가 있다면 먼저 2-3개만 간단히 소개하세요
+            2. 답변은 2문장으로 제한하세요
+            3. 친근하고 공감하는 톤을 유지하세요
+            4. 자연스럽게 추가 정보를 요청하세요
+            5. 가상의 대화를 만들지 마세요
+            6. 사용자가 요청한 분야나 조건에 맞춰 상담하세요
+            7. 한 번에 하나의 정보만 요청하세요
+            
+            수집해야 할 정보:
+            - 연령대
+            - 성별
+            - 선호 지역
+            - 희망 연봉
+            - 경력 사항
+            - 자격증/교육 이력
+            - 선호하는 직종/업종
+            - 근무 형태(정규직/계약직/파트타임)
+            
+            이전 대화:
             {chat_history}
-
-            Available recommendations:
+            
+            추천 가능한 정보:
             {similar_jobs}
-
-            User: {input}
+            
+            사용자: {input}
             Assistant: """
         )
         
@@ -72,7 +78,8 @@ class LLMService:
             llm=self.llm,
             prompt=self.interview_prompt,
             memory=self.conversation_memory,
-            verbose=True
+            verbose=True,
+            output_key="text"  # 출력 키를 text로 통일
         )
 
     async def translate_to_korean(self, text: str) -> str:
@@ -89,71 +96,31 @@ class LLMService:
 
     async def get_response(self, user_input: str) -> Dict[str, Any]:
         try:
-            # 대화 내용 임베딩 (llama2 사용)
-            conversation_embedding = await self.embeddings.aembed_query(user_input)
+            print("1. Starting get_response...")
             
-            # 유사한 채용 공고 검색
-            similar_jobs = await self.vector_db.search_similar_jobs(
-                vector=conversation_embedding,
-                limit=3
-            )
+            # 대화 내용에서 키워드 추출
+            chat_history = self.conversation_memory.load_memory_variables({})
+            print(f"2. Loaded chat history: {chat_history}")
             
-            # 유사한 훈련 프로그램 검색
-            similar_programs = await self.vector_db.search_similar_programs(
-                vector=conversation_embedding,
-                limit=2
-            )
+            history_str = "\n".join([
+                f"사용자: {msg.content}" if msg.type == "human" else f"AI: {msg.content}"
+                for msg in chat_history.get("chat_history", [])
+            ])
+            print(f"3. Formatted history: {history_str}")
             
-            # 채용 공고 정보를 문자열로 변환
-            similar_jobs_text = "\n".join([
-                f"- {job['metadata']['title']} ({job['metadata']['company_name']})"
-                f"\n  위치: {job['metadata']['location']}"
-                f"\n  급여: {job['metadata']['salary']}"
-                f"\n  근무형태: {job['metadata']['job_type']}"
-                for job in similar_jobs
-            ]) if similar_jobs else "아직 맞춤 채용 공고를 찾고 있습니다."
-
-            # 훈련 프로그램 정보를 문자열로 변환
-            similar_programs_text = "\n".join([
-                f"- {program['metadata']['title']} ({program['metadata']['institution']})"
-                f"\n  기간: {program['metadata']['duration']}"
-                f"\n  비용: {program['metadata']['cost']}"
-                f"\n  장소: {program['metadata']['location']}"
-                for program in similar_programs
-            ]) if similar_programs else "아직 맞춤 훈련 프로그램을 찾고 있습니다."
-
-            # 프롬프트에 훈련 프로그램 정보 추가
-            combined_recommendations = f"""
-            추천 채용 공고:
-            {similar_jobs_text}
-            
-            추천 훈련 프로그램:
-            {similar_programs_text}
-            """
-
-            # LLM 응답 생성 (영어)
-            response = await self.chain.ainvoke({
-                "input": user_input,
-                "similar_jobs": combined_recommendations
-            })
-            
-            # 응답을 한국어로 번역
-            korean_response = await self.translate_to_korean(response['text'])
-            
-            # 현재까지의 대화 내용에서 키워드 추출
-            chat_history = self.conversation_memory.load_memory_variables({})["chat_history"]
             full_context = f"""
             지금까지의 대화:
-            {chat_history}
+            {history_str}
             
             마지막 대화:
             사용자: {user_input}
-            AI: {korean_response}
             """
+            print("4. Created full context")
             
+            # 키워드 추출
             keyword_extraction_prompt = f"""
-            다음 대화 내용에서 발견된 구직 관련 정보를 추출해주세요.
-            발견된 정보만 추출하고, 없는 정보는 빈 리스트로 남겨주세요.
+            다음 대화 내용에서 구직 관련 정보를 최대한 추출해주세요.
+            빈 값이라도 관련 있을 수 있는 키워드는 모두 포함해주세요.
             
             {full_context}
             
@@ -166,21 +133,66 @@ class LLMService:
             }}
             """
             
+            print("5. Extracting keywords...")
             keywords_response = await self.llm.agenerate([keyword_extraction_prompt])
             keywords_text = keywords_response.generations[0][0].text
+            print(f"6. Extracted keywords text: {keywords_text}")
             
             try:
                 keywords = json.loads(keywords_text)
-            except json.JSONDecodeError:
+                print(f"7. Parsed keywords: {keywords}")
+            except json.JSONDecodeError as e:
+                print(f"Error parsing keywords JSON: {str(e)}")
                 keywords = {
-                    "직무_키워드": [],
+                    "직무_키워드": ["일반"],
                     "기술_자격_키워드": [],
-                    "선호도_키워드": [],
+                    "선호도_키워드": ["서울"],
                     "제약사항_키워드": []
                 }
+                print(f"7. Using default keywords: {keywords}")
+
+            # 검색 실행
+            print("8. Starting vector search...")
+            conversation_embedding = await self.embeddings.aembed_query(user_input)
+            print("9. Created embedding")
+            
+            similar_jobs = await self.vector_db.search_similar_jobs(
+                vector=conversation_embedding,
+                limit=5,
+                filter_conditions={
+                    "keywords": keywords['직무_키워드'],
+                    "location": keywords['선호도_키워드']
+                }
+            )
+            print(f"10. Found similar jobs: {len(similar_jobs)}")
+            
+            similar_programs = await self.vector_db.search_similar_programs(
+                vector=conversation_embedding,
+                limit=3,
+                filter_conditions={
+                    "keywords": keywords['직무_키워드']
+                }
+            )
+            print(f"11. Found similar programs: {len(similar_programs)}")
+            
+            # 응답 생성
+            print("12. Generating response...")
+            response = await self.chain.ainvoke({
+                "input": user_input,
+                "similar_jobs": self._format_recommendations(similar_jobs, similar_programs)
+            })
+            print(f"13. Generated response: {response}")
+            
+            # 대화 기록 저장
+            print("14. Saving conversation...")
+            self.conversation_memory.save_context(
+                {"input": user_input},
+                {"text": response['text']}
+            )
+            print("15. Saved conversation")
             
             return {
-                "message": korean_response,
+                "message": response['text'],
                 "keywords": keywords,
                 "similar_jobs": similar_jobs,
                 "similar_programs": similar_programs,
@@ -188,9 +200,12 @@ class LLMService:
             }
             
         except Exception as e:
-            print(f"Error in LLM service: {str(e)}")
+            print(f"Error in get_response: {str(e)}")
+            print(f"Error type: {type(e)}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
             return {
-                "message": "안녕하세요! 취업 상담을 도와드리겠습니다. 어떤 도움이 필요하신가요?",
+                "message": "죄송합니다. 일시적인 오류가 발생했습니다. 다시 한 번 말씀해 주시겠어요?",
                 "keywords": {
                     "직무_키워드": [],
                     "기술_자격_키워드": [],
@@ -201,6 +216,32 @@ class LLMService:
                 "similar_programs": [],
                 "embeddings": []
             }
+
+    def _format_recommendations(self, jobs: List[Dict], programs: List[Dict]) -> str:
+        """추천 정보 포맷팅"""
+        jobs_text = "\n".join([
+            f"- {job['metadata']['title']} ({job['metadata']['company_name']})"
+            f"\n  위치: {job['metadata']['location']}"
+            f"\n  급여: {job['metadata']['salary']}"
+            f"\n  근무형태: {job['metadata']['job_type']}"
+            for job in jobs
+        ]) if jobs else "현재 조건에 맞는 채용 공고를 찾고 있습니다."
+
+        programs_text = "\n".join([
+            f"- {program['metadata']['title']} ({program['metadata']['institution']})"
+            f"\n  기간: {program['metadata']['duration']}"
+            f"\n  비용: {program['metadata']['cost']}"
+            f"\n  장소: {program['metadata']['location']}"
+            for program in programs
+        ]) if programs else "현재 조건에 맞는 훈련 프로그램을 찾고 있습니다."
+
+        return f"""
+        추천 채용 공고:
+        {jobs_text}
+        
+        추천 훈련 프로그램:
+        {programs_text}
+        """
 
     def reset_conversation(self):
         self.conversation_memory.clear() 
