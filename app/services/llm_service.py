@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import os
 import json
 from langchain_community.llms import Ollama
@@ -7,6 +7,8 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferMemory
 from .vector_db_service import VectorDBService
+import asyncio
+import httpx
 
 class LLMService:
     def __init__(self, model_name: str = "phi4"):
@@ -96,109 +98,125 @@ class LLMService:
 
     async def get_response(self, user_input: str) -> Dict[str, Any]:
         try:
-            print("1. Starting get_response...")
-            
-            # 대화 내용에서 키워드 추출
-            chat_history = self.conversation_memory.load_memory_variables({})
-            print(f"2. Loaded chat history: {chat_history}")
-            
-            history_str = "\n".join([
-                f"사용자: {msg.content}" if msg.type == "human" else f"AI: {msg.content}"
-                for msg in chat_history.get("chat_history", [])
-            ])
-            print(f"3. Formatted history: {history_str}")
-            
-            full_context = f"""
-            지금까지의 대화:
-            {history_str}
-            
-            마지막 대화:
-            사용자: {user_input}
-            """
-            print("4. Created full context")
-            
-            # 키워드 추출
-            keyword_extraction_prompt = f"""
-            다음 대화 내용에서 구직 관련 정보를 최대한 추출해주세요.
-            빈 값이라도 관련 있을 수 있는 키워드는 모두 포함해주세요.
-            
-            {full_context}
-            
-            다음 JSON 형식으로 반환해주세요:
-            {{
-                "직무_키워드": [],
-                "기술_자격_키워드": [],
-                "선호도_키워드": [],
-                "제약사항_키워드": []
-            }}
-            """
-            
-            print("5. Extracting keywords...")
-            keywords_response = await self.llm.agenerate([keyword_extraction_prompt])
-            keywords_text = keywords_response.generations[0][0].text
-            print(f"6. Extracted keywords text: {keywords_text}")
-            
-            try:
-                keywords = json.loads(keywords_text)
-                print(f"7. Parsed keywords: {keywords}")
-            except json.JSONDecodeError as e:
-                print(f"Error parsing keywords JSON: {str(e)}")
-                keywords = {
-                    "직무_키워드": ["일반"],
+            # 타임아웃 설정
+            async with asyncio.timeout(60):  # 60초 타임아웃
+                print("1. Starting get_response...")
+                
+                # 대화 내용에서 키워드 추출
+                chat_history = self.conversation_memory.load_memory_variables({})
+                print(f"2. Loaded chat history: {chat_history}")
+                
+                history_str = "\n".join([
+                    f"사용자: {msg.content}" if msg.type == "human" else f"AI: {msg.content}"
+                    for msg in chat_history.get("chat_history", [])
+                ])
+                print(f"3. Formatted history: {history_str}")
+                
+                full_context = f"""
+                지금까지의 대화:
+                {history_str}
+                
+                마지막 대화:
+                사용자: {user_input}
+                """
+                print("4. Created full context")
+                
+                # 키워드 추출
+                keyword_extraction_prompt = f"""
+                다음 대화 내용에서 구직 관련 정보를 최대한 추출해주세요.
+                빈 값이라도 관련 있을 수 있는 키워드는 모두 포함해주세요.
+                
+                {full_context}
+                
+                다음 JSON 형식으로 반환해주세요:
+                {{
+                    "직무_키워드": [],
                     "기술_자격_키워드": [],
-                    "선호도_키워드": ["서울"],
+                    "선호도_키워드": [],
                     "제약사항_키워드": []
-                }
-                print(f"7. Using default keywords: {keywords}")
+                }}
+                """
+                
+                print("5. Extracting keywords...")
+                keywords_response = await self.llm.agenerate([keyword_extraction_prompt])
+                keywords_text = keywords_response.generations[0][0].text
+                print(f"6. Extracted keywords text: {keywords_text}")
+                
+                try:
+                    keywords = json.loads(keywords_text)
+                    print(f"7. Parsed keywords: {keywords}")
+                except json.JSONDecodeError as e:
+                    print(f"Error parsing keywords JSON: {str(e)}")
+                    keywords = {
+                        "직무_키워드": [],
+                        "기술_자격_키워드": [],
+                        "선호도_키워드": [],
+                        "제약사항_키워드": []
+                    }
+                    print(f"7. Using default keywords: {keywords}")
 
-            # 검색 실행
-            print("8. Starting vector search...")
-            conversation_embedding = await self.embeddings.aembed_query(user_input)
-            print("9. Created embedding")
-            
-            similar_jobs = await self.vector_db.search_similar_jobs(
-                vector=conversation_embedding,
-                limit=5,
-                filter_conditions={
-                    "keywords": keywords['직무_키워드'],
-                    "location": keywords['선호도_키워드']
+                # 검색 실행
+                print("8. Starting vector search...")
+                conversation_embedding = await self.embeddings.aembed_query(user_input)
+                print("9. Created embedding")
+                
+                similar_jobs = await self.vector_db.search_similar_jobs(
+                    vector=conversation_embedding,
+                    limit=5,
+                    filter_conditions={
+                        "keywords": keywords['직무_키워드'],
+                        "location": keywords['선호도_키워드']
+                    }
+                )
+                print(f"10. Found similar jobs: {len(similar_jobs)}")
+                
+                similar_programs = await self.vector_db.search_similar_programs(
+                    vector=conversation_embedding,
+                    limit=3,
+                    filter_conditions={
+                        "keywords": keywords['직무_키워드']
+                    }
+                )
+                print(f"11. Found similar programs: {len(similar_programs)}")
+                
+                # 응답 생성
+                print("12. Generating response...")
+                response = await self.chain.ainvoke({
+                    "input": user_input,
+                    "similar_jobs": self._format_recommendations(similar_jobs, similar_programs)
+                })
+                print(f"13. Generated response: {response}")
+                
+                # 대화 기록 저장
+                print("14. Saving conversation...")
+                self.conversation_memory.save_context(
+                    {"input": user_input},
+                    {"text": response['text']}
+                )
+                print("15. Saved conversation")
+                
+                return {
+                    "message": response['text'],
+                    "keywords": keywords,
+                    "similar_jobs": similar_jobs,
+                    "similar_programs": similar_programs,
+                    "embeddings": conversation_embedding
                 }
-            )
-            print(f"10. Found similar jobs: {len(similar_jobs)}")
-            
-            similar_programs = await self.vector_db.search_similar_programs(
-                vector=conversation_embedding,
-                limit=3,
-                filter_conditions={
-                    "keywords": keywords['직무_키워드']
-                }
-            )
-            print(f"11. Found similar programs: {len(similar_programs)}")
-            
-            # 응답 생성
-            print("12. Generating response...")
-            response = await self.chain.ainvoke({
-                "input": user_input,
-                "similar_jobs": self._format_recommendations(similar_jobs, similar_programs)
-            })
-            print(f"13. Generated response: {response}")
-            
-            # 대화 기록 저장
-            print("14. Saving conversation...")
-            self.conversation_memory.save_context(
-                {"input": user_input},
-                {"text": response['text']}
-            )
-            print("15. Saved conversation")
-            
+                
+        except asyncio.TimeoutError:
+            print("Request timed out after 60 seconds")
             return {
-                "message": response['text'],
-                "keywords": keywords,
-                "similar_jobs": similar_jobs,
-                "similar_programs": similar_programs,
-                "embeddings": conversation_embedding
+                "message": "죄송합니다. 요청 처리 시간이 초과되었습니다. 다시 시도해 주시겠어요?",
+                "keywords": {
+                    "직무_키워드": [],
+                    "기술_자격_키워드": [],
+                    "선호도_키워드": [],
+                    "제약사항_키워드": []
+                },
+                "similar_jobs": [],
+                "similar_programs": [],
+                "embeddings": []
             }
-            
         except Exception as e:
             print(f"Error in get_response: {str(e)}")
             print(f"Error type: {type(e)}")

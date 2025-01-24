@@ -7,6 +7,8 @@ from .work24_service import Work24Service
 from .hrd_service import HRDService
 from .vector_db_service import VectorDBService
 from .llm_service import LLMService
+from .code_service import CodeService
+import asyncio
 
 class SchedulerService:
     def __init__(self):
@@ -15,13 +17,16 @@ class SchedulerService:
         self.hrd_service = HRDService()
         self.vector_db = VectorDBService()
         self.llm_service = LLMService(model_name="llama2")  # 임베딩용
+        self.code_service = CodeService()  # CodeService 인스턴스 추가
         
         # 작업 상태 추적
         self.last_job_collection: Optional[datetime] = None
         self.last_training_collection: Optional[datetime] = None
+        self.last_code_collection: Optional[datetime] = None  # 코드 수집 시간 추가
         self.collection_status = {
             "jobs": {"status": "idle", "count": 0, "error": None},
-            "training": {"status": "idle", "count": 0, "error": None}
+            "training": {"status": "idle", "count": 0, "error": None},
+            "codes": {"status": "idle", "count": 0, "error": None}  # 코드 상태 추가
         }
 
     async def collect_jobs(self):
@@ -34,7 +39,9 @@ class SchedulerService:
             for page in range(1, 11):  # 최대 10페이지
                 job_postings = await self.work24_service.fetch_job_postings(
                     start_page=page,
-                    display=100
+                    display=100,
+                    occupation="미화",  # 미화/청소 직종 코드
+                    keyword="청소"  # 청소 관련 키워드
                 )
                 
                 if not job_postings:
@@ -60,6 +67,7 @@ class SchedulerService:
                         
                         if success:
                             total_count += 1
+                            print(f"채용공고 저장 성공: {job['title']}")
                             
                     except Exception as e:
                         print(f"채용 공고 처리 중 오류 발생: {str(e)}")
@@ -126,8 +134,30 @@ class SchedulerService:
             self.collection_status["training"]["error"] = str(e)
             print(f"훈련 프로그램 수집 중 오류 발생: {str(e)}")
 
+    async def collect_codes(self):
+        """공통 코드 데이터 수집 작업"""
+        try:
+            self.collection_status["codes"]["status"] = "running"
+            
+            # 코드 데이터 수집
+            codes = await self.code_service.get_all_codes()
+            
+            if codes:
+                self.collection_status["codes"]["count"] = sum(len(v) for v in codes.values())
+                self.collection_status["codes"]["status"] = "completed"
+                self.collection_status["codes"]["error"] = None
+                self.last_code_collection = datetime.now()
+            
+        except Exception as e:
+            self.collection_status["codes"]["status"] = "error"
+            self.collection_status["codes"]["error"] = str(e)
+            print(f"코드 데이터 수집 중 오류 발생: {str(e)}")
+
     def start(self):
         """스케줄러 시작"""
+        # 서버 시작 시 즉시 실행
+        asyncio.create_task(self.collect_jobs())
+        
         # 매일 새벽 3시에 채용 정보 수집
         self.scheduler.add_job(
             self.collect_jobs,
@@ -144,6 +174,14 @@ class SchedulerService:
             replace_existing=True
         )
         
+        # 매일 오전 9시와 오후 6시에 코드 데이터 수집
+        self.scheduler.add_job(
+            self.collect_codes,
+            CronTrigger(hour='9,18', minute=0),
+            id="collect_codes",
+            replace_existing=True
+        )
+        
         self.scheduler.start()
     
     def get_status(self):
@@ -156,5 +194,9 @@ class SchedulerService:
             "training": {
                 **self.collection_status["training"],
                 "last_collection": self.last_training_collection.isoformat() if self.last_training_collection else None
+            },
+            "codes": {
+                **self.collection_status["codes"],
+                "last_collection": self.last_code_collection.isoformat() if self.last_code_collection else None
             }
         } 
