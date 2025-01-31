@@ -6,6 +6,11 @@ from datetime import datetime
 from sentence_transformers import SentenceTransformer
 from ..core.config import settings
 from .vector_db_service import VectorDBService
+<<<<<<< HEAD
+=======
+import requests
+from chromadb import Client, Settings
+>>>>>>> origin/master
 
 class DataCollectionService:
     def __init__(self):
@@ -19,6 +24,10 @@ class DataCollectionService:
         
         # sentence-transformers 모델 로드
         self.model = SentenceTransformer('jhgan/ko-sbert-nli')
+<<<<<<< HEAD
+=======
+        self.model_name = "nomic-embed-text"  # llama2에서 변경
+>>>>>>> origin/master
 
     async def collect_job_postings(self):
         """고용24 API에서 채용공고 데이터 수집"""
@@ -243,4 +252,42 @@ class DataCollectionService:
                 )
         except Exception as e:
             print(f"Error processing training programs: {str(e)}")
+<<<<<<< HEAD
             raise e 
+=======
+            raise e
+
+    async def get_embedding(self, text: str) -> List[float]:
+        """텍스트를 임베딩 벡터로 변환"""
+        try:
+            response = requests.post(
+                f"{settings.OLLAMA_BASE_URL}/api/embeddings",
+                json={
+                    "model": self.model_name,
+                    "prompt": text
+                }
+            )
+            response.raise_for_status()
+            return response.json()["embedding"]
+        except Exception as e:
+            print(f"Error raised by inference endpoint: {str(e)}")
+            return []
+
+client = Client(Settings(
+    persist_directory="db",
+    is_persistent=True
+))
+
+# 컬렉션 가져오기
+collection = client.get_collection("job_postings")
+
+# 모든 데이터 조회
+results = collection.get()
+
+# 결과 출력
+for i in range(len(results['ids'])):
+    print(f"\n--- 채용공고 {i+1} ---")
+    print(f"ID: {results['ids'][i]}")
+    print(f"메타데이터: {results['metadatas'][i]}")
+    print(f"문서내용: {results['documents'][i]}")
+>>>>>>> origin/master

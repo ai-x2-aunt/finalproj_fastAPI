@@ -10,6 +10,10 @@ from ...services.code_service import CodeService
 from ...services.data_collection_service import DataCollectionService
 from ...core.config import settings
 from datetime import datetime
+<<<<<<< HEAD
+=======
+from ...services.job_posting_service import JobPostingService
+>>>>>>> origin/master
 
 router = APIRouter()
 vector_db = VectorDBService()
@@ -20,7 +24,14 @@ code_service = CodeService()
 data_collection_service = DataCollectionService()
 
 async def get_llm_service():
+<<<<<<< HEAD
     return LLMService(model_name="llama2")  # 임베딩용으로 llama2 사용
+=======
+    return LLMService(model_name="nomic-embed-text")  # llama2에서 변경
+
+async def get_job_posting_service() -> JobPostingService:
+    return JobPostingService()
+>>>>>>> origin/master
 
 @router.post("/jobs/", response_model=bool)
 async def create_job_posting(job: JobPosting, llm_service: LLMService = Depends(get_llm_service)):
@@ -249,4 +260,23 @@ async def collect_training_programs():
         result = await data_collection_service.collect_training_programs()
         return result
     except Exception as e:
+<<<<<<< HEAD
+=======
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/jobs/", response_model=List[Dict[str, Any]])
+async def get_all_jobs(
+    service: JobPostingService = Depends(get_job_posting_service)
+):
+    """모든 채용 공고 목록을 반환합니다."""
+    jobs = await service.get_all_jobs()
+    return jobs
+
+@router.get("/jobs/raw", response_model=Dict[str, Any])
+async def get_raw_job_data():
+    """ChromaDB에 저장된 원본 데이터 조회"""
+    try:
+        return await vector_db.get_all_job_postings_raw()
+    except Exception as e:
+>>>>>>> origin/master
         raise HTTPException(status_code=500, detail=str(e)) 

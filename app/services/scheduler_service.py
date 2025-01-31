@@ -37,11 +37,21 @@ class SchedulerService:
             
             # 여러 페이지의 데이터 수집
             for page in range(1, 11):  # 최대 10페이지
+<<<<<<< HEAD
                 job_postings = await self.work24_service.fetch_job_postings(
                     start_page=page,
                     display=100,
                     occupation="미화",  # 미화/청소 직종 코드
                     keyword="청소"  # 청소 관련 키워드
+=======
+                # 채용정보 목록 조회
+                job_postings = await self.work24_service.fetch_job_postings(
+                    start_page=page,
+                    display=100,  # 한 페이지당 최대 100개
+                    age_target="senior",  # 고령자 일자리 필터
+                    region=None,  # 전국
+                    job_type=None  # 모든 직종
+>>>>>>> origin/master
                 )
                 
                 if not job_postings:
@@ -49,6 +59,7 @@ class SchedulerService:
                 
                 for job in job_postings:
                     try:
+<<<<<<< HEAD
                         # 임베딩 생성
                         job_text = f"""
                         제목: {job['title']}
@@ -57,6 +68,29 @@ class SchedulerService:
                         직무 설명: {job['description']}
                         자격 요건: {job['requirements']}
                         """
+=======
+                        # 채용상세정보 조회
+                        job_detail = await self.work24_service.fetch_job_detail(
+                            job_id=job.get("wantedAuthNo")
+                        )
+                        
+                        if job_detail:
+                            # 목록정보와 상세정보 병합
+                            job.update(job_detail)
+                        
+                        # 임베딩 생성을 위한 텍스트 구성
+                        job_text = f"""
+                        제목: {job.get('title', '')}
+                        회사: {job.get('company_name', '')}
+                        위치: {job.get('location', '')}
+                        직무 설명: {job.get('description', '')}
+                        자격 요건: {job.get('requirements', '')}
+                        근무조건: {job.get('working_conditions', '')}
+                        복리후생: {job.get('benefits', '')}
+                        우대사항: {job.get('preferences', '')}
+                        """
+                        
+>>>>>>> origin/master
                         vector = await self.llm_service.embeddings.aembed_query(job_text)
                         
                         # 벡터 DB에 저장
@@ -67,7 +101,11 @@ class SchedulerService:
                         
                         if success:
                             total_count += 1
+<<<<<<< HEAD
                             print(f"채용공고 저장 성공: {job['title']}")
+=======
+                            print(f"채용공고 저장 성공: {job.get('title')}")
+>>>>>>> origin/master
                             
                     except Exception as e:
                         print(f"채용 공고 처리 중 오류 발생: {str(e)}")
