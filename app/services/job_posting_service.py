@@ -9,11 +9,7 @@ class JobPostingService:
     def __init__(self):
         self.vector_db = VectorDBService()
         self.embeddings = OllamaEmbeddings(
-<<<<<<< HEAD
-            model="llama2",
-=======
             model="nomic-embed-text",
->>>>>>> origin/master
             base_url="http://localhost:11434"
         )
 
@@ -183,9 +179,6 @@ class JobPostingService:
             )
         ]
         
-<<<<<<< HEAD
-        return await self.batch_create_job_postings(sample_jobs) 
-=======
         return await self.batch_create_job_postings(sample_jobs)
 
     async def get_all_jobs(self) -> List[JobPosting]:
@@ -196,4 +189,3 @@ class JobPostingService:
         except Exception as e:
             print(f"Error getting all jobs: {str(e)}")
             return [] 
->>>>>>> origin/master
