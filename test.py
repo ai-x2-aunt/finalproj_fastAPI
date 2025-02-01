@@ -6,10 +6,12 @@ load_dotenv() # .env 파일을 로드하여 환경변수에 저장
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY') # .env에서 'OPENAI_API_KEY' 값을 가져온다
 
 # from langchain.embeddings import OpenAIEmbeddings
-from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
+
 from langchain.text_splitter import CharacterTextSplitter
 # from langchain.vectorstores import Chroma
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
+
 # from langchain.document_loaders import TextLoader
 # from langchain.document_loaders import JSONLoader
 from langchain_community.document_loaders import TextLoader, JSONLoader  # 한 줄로 import 가능
@@ -95,7 +97,7 @@ persist_directory = 'db/speech_embedding_db' # 벡터 스토어를 저장할 디
 vectordb = Chroma.from_documents(docs, embedding_function, persist_directory=persist_directory)
 
 # 데이터베이스 저장
-vectordb.persist() # 데이터베이스를 디스크에 저장한다
+# vectordb.persist() # 데이터베이스를 디스크에 저장한다 : Chroma 0.4.x부터는 persist() 메서드를 사용하지 않고, 문서가 자동으로 저장되기 때문에 더 이상 수동으로 저장할 필요가 없습니다.
 
 # 벡터 스토어 로드
 # 저장된 벡터 스토어 로드
@@ -104,7 +106,9 @@ vectordb = Chroma(persist_directory=persist_directory, embedding_function=embedd
 
 # 유사성 검색
 # 유사성 검색 예시
-query = "군산에 50대이상이 지원할 수 있는 일자리를 알아봐줄래? 난 여자야."
+print("-----------------------------------------------------------")
+query = input("취업을 희망하시는 지역과 성별, 연령을 알려주세요: ")
+print("-----------------------------------------------------------")
 results = vectordb.similarity_search(query) # similarity_search 쿼리와 유사한 문서를 검색
 
 # 결과 출력 -- 검색된 문서의 내용을 출력
@@ -120,5 +124,6 @@ results = vectordb.similarity_search(query) # similarity_search 쿼리와 유사
 with open("results.txt", "w", encoding="utf-8") as file: # 파일 열기 (쓰기 모드)
     for idx, doc in enumerate(results):
         file.write(f"결과: {idx+1}:\n{doc.page_content}\n") # 파일에 내용 쓰기
+        print(f"결과: {idx+1}:\n{doc.page_content}\n")
 
 print("검색 결과가 results.txt 파일에 저장되었습니다.")
