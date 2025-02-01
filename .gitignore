@@ -23,6 +23,8 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+results.txt
+test.py
 
 # 가상환경
 venv/

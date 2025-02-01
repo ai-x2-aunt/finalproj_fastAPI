@@ -4,7 +4,7 @@ from .job_posting import JobSearchResult
 
 class ChatRequest(BaseModel):
     message: str
-    model_name: Optional[str] = "llama2"  # "llama2" 또는 "phi4"
+    model_name: Optional[str] = "gpt-4o-mini"  
 
 class ChatResponse(BaseModel):
     message: str
