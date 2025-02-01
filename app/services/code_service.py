@@ -70,7 +70,7 @@ class CodeService:
                     follow_redirects=True  # 리다이렉트 자동 처리
                 )
                 print(f"응답 상태 코드: {response.status_code}")
-                print(f"응답 내용: {response.text}")
+                # print(f"응답 내용: {response.text}")
                 response.raise_for_status()
                 
                 # 응답이 비어있거나 에러 메시지가 포함된 경우
@@ -80,7 +80,7 @@ class CodeService:
                 
                 # XML을 딕셔너리로 변환
                 data = xmltodict.parse(response.text)
-                print(f"파싱된 데이터: {data}")
+                # print(f"파싱된 데이터: {data}")
                 codes = []
                 
                 # 코드 타입에 따라 다른 처리
@@ -116,7 +116,7 @@ class CodeService:
                         
                         codes.append(code_info)
                 
-                print(f"파싱 결과: {codes}")  # 디버그 로그 추가
+                # print(f"파싱 결과: {codes}")  # 디버그 로그 추가
                 
                 # 결과를 캐시에 저장
                 self.code_cache[code_type] = codes

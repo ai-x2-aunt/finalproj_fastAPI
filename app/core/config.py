@@ -6,6 +6,13 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Senior Job Platform"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
+
+    # OpenAI API Key 추가
+    OPENAI_API_KEY: str
+
+    model_config = SettingsConfigDict(env_file=".env")
+
+
     
     # CORS 설정
     BACKEND_CORS_ORIGINS: List[str]
@@ -88,10 +95,10 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
 
-    model_config = SettingsConfigDict(
-        case_sensitive=True,
-        env_file=".env",
-        env_file_encoding="utf-8"
-    )
+    # model_config = SettingsConfigDict(
+    #     case_sensitive=True,
+    #     env_file=".env",
+    #     env_file_encoding="utf-8"
+    # )
 
 settings = Settings() 

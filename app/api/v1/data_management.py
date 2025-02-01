@@ -21,7 +21,7 @@ code_service = CodeService()
 data_collection_service = DataCollectionService()
 
 async def get_llm_service():
-    return LLMService(model_name="nomic-embed-text")  # llama2에서 변경
+    return LLMService(model_name="nomic-embed-text") 
 
 async def get_job_posting_service() -> JobPostingService:
     return JobPostingService()

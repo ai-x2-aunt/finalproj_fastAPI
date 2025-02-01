@@ -16,7 +16,7 @@ class SchedulerService:
         self.work24_service = Work24Service()
         self.hrd_service = HRDService()
         self.vector_db = VectorDBService()
-        self.llm_service = LLMService(model_name="llama2")  # 임베딩용
+        self.llm_service = LLMService(model_name="gpt-4o-mini")  # 임베딩용
         self.code_service = CodeService()  # CodeService 인스턴스 추가
         
         # 작업 상태 추적
@@ -170,9 +170,6 @@ class SchedulerService:
 
     def start(self):
         """스케줄러 시작"""
-        # 서버 시작 시 즉시 실행
-        asyncio.create_task(self.collect_jobs())
-        
         # 매일 새벽 3시에 채용 정보 수집
         self.scheduler.add_job(
             self.collect_jobs,
@@ -189,10 +186,10 @@ class SchedulerService:
             replace_existing=True
         )
         
-        # 매일 오전 9시와 오후 6시에 코드 데이터 수집
+        # 매일 오전 2시에 공통코드 수집 (하루에 한 번만)
         self.scheduler.add_job(
             self.collect_codes,
-            CronTrigger(hour='9,18', minute=0),
+            CronTrigger(hour=2, minute=0),
             id="collect_codes",
             replace_existing=True
         )

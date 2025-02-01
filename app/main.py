@@ -16,7 +16,10 @@ app = FastAPI(
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # 프론트엔드 주소 명시
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000"  # React 개발 서버 포트 추가
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,10 +40,7 @@ async def startup_event():
     # 스케줄러 시작
     scheduler.start()
     
-    # 스케줄러를 통해 첫 데이터 수집 시작
-    await scheduler.collect_codes()
-    
-    # 벡터 DB 초기화
+    # DB에서 데이터 로드
     await vector_db.initialize_data()
     
     # 벡터 DB 상태 확인

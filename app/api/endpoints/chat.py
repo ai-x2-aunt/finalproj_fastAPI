@@ -13,7 +13,7 @@ async def chat(request: ChatRequest):
     return response
 
 @router.post("/reset")
-async def reset_chat(model_name: str = "llama2"):
+async def reset_chat(model_name: str = "gpt-4o-mini"):
     """채팅 대화 기록을 초기화합니다."""
     service = LLMService(model_name=model_name)
     service.reset_conversation()

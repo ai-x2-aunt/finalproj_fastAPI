@@ -8,6 +8,7 @@ from ..core.config import settings
 from .vector_db_service import VectorDBService
 import requests
 from chromadb import Client, Settings
+from openai import AsyncOpenAI
 
 class DataCollectionService:
     def __init__(self):
@@ -19,9 +20,8 @@ class DataCollectionService:
         # Vector DB 초기화
         self.vector_db = VectorDBService()
         
-        # sentence-transformers 모델 로드
-        self.model = SentenceTransformer('jhgan/ko-sbert-nli')
-        self.model_name = "nomic-embed-text"  # llama2에서 변경
+        # OpenAI 임베딩 모델로 통일
+        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
     async def collect_job_postings(self):
         """고용24 API에서 채용공고 데이터 수집"""
@@ -251,17 +251,13 @@ class DataCollectionService:
     async def get_embedding(self, text: str) -> List[float]:
         """텍스트를 임베딩 벡터로 변환"""
         try:
-            response = requests.post(
-                f"{settings.OLLAMA_BASE_URL}/api/embeddings",
-                json={
-                    "model": self.model_name,
-                    "prompt": text
-                }
+            response = await self.client.embeddings.create(
+                model="text-embedding-3-small",
+                input=text
             )
-            response.raise_for_status()
-            return response.json()["embedding"]
+            return response.data[0].embedding
         except Exception as e:
-            print(f"Error raised by inference endpoint: {str(e)}")
+            print(f"Error in get_embedding: {str(e)}")
             return []
 
 client = Client(Settings(
