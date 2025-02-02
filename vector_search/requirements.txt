@@ -6,3 +6,5 @@ sentence-transformers==3.4.1
 transformers==4.48.2
 torch==2.6.0
 python-dotenv==1.0.0
+langchain-chroma
+langchain-huggingface
